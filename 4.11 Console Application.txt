@@ -108,7 +108,7 @@ void executeUpdate()
 
 int main()
 {
-	EXEC SQL CONNECT TO "postgres@localhost" :5432 USER "postgres" USING "krit26/99" ;
+	EXEC SQL CONNECT TO "postgres@localhost" :5432 USER "postgres" USING "yourpassword" ;
 	EXEC SQL WHENEVER SQLERROR SQLPRINT;
 	EXEC SQL WHENEVER SQLWARNING SQLPRINT;	
 	EXEC SQL set search_path to hotel;
