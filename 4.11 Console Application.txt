@@ -1,0 +1,144 @@
+#include <stdio.h>
+#include <string.h>
+
+EXEC SQL BEGIN DECLARE SECTION;
+char a[40],b[40],c[40];
+char id[10], name[40];
+char salary[10];
+int amount = 0;
+int aa;
+int n;
+int da;
+int mo;
+int yr;
+long long int cid;
+EXEC SQL END DECLARE SECTION;
+
+void executeQuery1()
+{	
+	printf("Enter the booking id\n");
+	scanf("%d",&n);
+	EXEC SQL DECLARE curs CURSOR FOR select bill(:n);
+
+	 EXEC SQL OPEN curs;
+	 EXEC SQL FETCH curs INTO :amount;
+	
+	printf("The final bill amount for booking id %d is %d \n",n,amount);
+	
+	EXEC SQL CLOSE curs;
+}
+
+void executeQuery3()
+{
+	printf("Enter the date as DD/MM/YYYY format \n");
+	scanf("%s",a);
+	amount = 0;
+	EXEC SQL DECLARE curs2 CURSOR FOR select (select count(*) as total from room) - count(*) as booked from books as r1 
+where check_in_date < to_date(:a,'DD/MM/YYYY') and check_out_date > to_date(:a,'DD/MM/YYYY');
+
+
+	 EXEC SQL OPEN curs2;
+	 EXEC SQL FETCH curs2 INTO :amount;
+	
+	printf("The number of rooms available on %s are %d \n",a,amount);
+	EXEC SQL CLOSE curs2;
+}
+
+void executeQuery2()
+{		
+	printf("Enter the month in MM format \n");
+	scanf("%d",&mo);
+	printf("Enter the year in YYYY format \n");
+	scanf("%d",&yr);
+
+    EXEC SQL DECLARE curs3 CURSOR FOR select r5.employee_id,r5.name,(r5.amount*r5.attendance + r5.base_salary) as salary from
+	(select r4.name,r4.employee_id,amount,r4.attendance,r4.base_salary from category join
+	(select employee_id,base_salary,"name",works_in,r3.count as attendance from employee natural join (select r2.employee_id,count(*)from
+	(select * from (select employee_id,extract (month from "date") as "month", extract (year from "date") as "year"
+	from has_attendance) as r1 where r1.month = '1' and r1.year = '2017') as r2 group by r2.employee_id) as r3) as r4
+	on category_id = r4.works_in) as r5;
+
+	EXEC SQL OPEN curs3;
+	
+    printf("The detailed salarries of employee is as follows \n");
+	while(sqlca.sqlcode==0)
+	{	
+		EXEC SQL FETCH curs3 INTO :id,:name,:salary;
+		printf("%s %s %s\n",id,name,salary);
+	}
+	EXEC SQL CLOSE curs3;
+}
+
+void executeUpdate()
+{
+	printf("Enter\n 1:To change the check out date of a particular booking\n 2: To make a new entry in the booking table\n 3:To delete a aparticular booking\n");
+	scanf("%d",&n);
+
+	if(n == 1){
+		printf("Here you can change the check out date of a booking\n Enter\n 1: To continue\n 0: To return to main menu\n");
+		scanf("%d",&aa);
+		if(a == 0) return;
+		printf("Enter the booking id for which you want to change the check out date\n");
+		scanf("%d",&n);
+		printf("Enter the new check out date in DD/MM/YYYY format\n");
+		scanf("%s",a);
+		EXEC SQL update books set check_out_date = to_date(:a,'dd/mm/yyyy') where booking_id = :n;
+		EXEC SQL COMMIT;
+	}
+	if(n == 2){
+		printf("To make a new entry in the booking table\n");
+		printf("Enter the booking id\n");
+		scanf("%d",&n);
+		printf("Enter the customer id\n");
+		scanf("%lld",&cid);
+		printf("Enter the room number\n");
+		scanf("%s",a);
+		printf("Enter the check in date in DD/MM/YYYY format\n");
+		scanf("%s",b);
+		printf("Enter the check out date in DD/MM/YYYY format\n");
+		scanf("%s",c);
+		EXEC SQL insert into books values(:n,:cid,:a,to_date(:b,'dd/mm/yyyy'),to_date(:c,'dd/mm/yyyy'),null);
+		EXEC SQL COMMIT;
+	}
+	
+
+
+
+}
+
+int main()
+{
+	EXEC SQL CONNECT TO "postgres@localhost" :5432 USER "postgres" USING "krit26/99" ;
+	EXEC SQL WHENEVER SQLERROR SQLPRINT;
+	EXEC SQL WHENEVER SQLWARNING SQLPRINT;	
+	EXEC SQL set search_path to hotel;
+	
+	bool exit=false;
+	int run=0;
+	while(!exit)
+	{
+		printf("Enter: \n1 : execute a query\n2 : update the data in books table\n");
+		int cntr;
+		scanf("%d",&cntr);
+		if(cntr==1)
+		{
+			int qq;
+            printf("Enter\n1: Get the total bill amount for a particular booking \n2:Find salary of all employees for a particular month of year \n3. Get number of available rooms on a particular date\n");
+			scanf("%d",&qq);
+			if(qq==1)
+				executeQuery1();
+			else if(qq==2) 
+				executeQuery2();
+			else 
+				executeQuery3();
+		}
+		else
+			executeUpdate();
+		printf("Exit program ? Enter 1 to exit else enter 0\n");
+
+		scanf("%d",&run);
+		if(run==1)
+			exit=true;
+	}
+	return 0;
+}

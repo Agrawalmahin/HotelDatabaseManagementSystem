@@ -1,0 +1,78 @@
+-- This file contains the queries
+-- group id :- 4.11
+
+
+-- 1. most valued customer i.e. the customer which contibutes maximum to the income of the hotel
+
+select "Name",r7.* from customer natural join
+(select r6.* from (select r5.customer_id,(coalesce(r5.room_price,0) + coalesce(r5.price,0)) as total_price from
+(select r4.customer_id,r4.room_price,r3.price from 
+(select customer_id,sum(total_room_price) as room_price from books group by customer_id) as r4
+left join (select customer_id,sum(price)as price from (select * from "order" natural join
+(select order_id,sum(price) as price from has_service_items group by order_id order by order_id asc) as r1) as r2
+group by customer_id) as r3 on r4.customer_id = r3.customer_id) as r5) as r6 order by r6.total_price desc limit 1) as r7;
+
+-- 2. salary of all the employee in a particular month
+
+select r5.employee_id,r5.name,(r5.amount*r5.attendance + r5.base_salary) as salary from
+(select r4.name,r4.employee_id,amount,r4.attendance,r4.base_salary from category join
+(select employee_id,base_salary,"name",works_in,r3.count as attendance from employee natural join (select r2.employee_id,count(*) from
+(select * from (select employee_id,extract (month from "date") as "month", extract (year from "date") as "year" 
+from has_attendance) as r1 where r1.month = '1' and r1.year = '2017') as r2 group by r2.employee_id) as r3) as r4
+on category_id = r4.works_in) as r5;
+
+-- 3. item in each category which is sold maximum
+
+select category_name,r6.service_name,r6.max as "quantity" from category natural join
+(select * from service_items natural join (select * from (select service_item_id,sum(quantity) from has_service_items group by service_item_id) as r4 join 
+(select category_id,max(r2.sum) from (select * from service_items natural join 
+(select service_item_id,sum(quantity) from has_service_items group by service_item_id) as r1) as r2
+group by category_id) as r3 on r4.sum = r3.max) as r5) as r6;
+
+-- 4. number of rooms available on a particular date
+
+select (select count(*) as total from room) - count(*) as booked from books as r1 
+where check_in_date < to_date('26/02/2017','DD/MM/YYYY') and check_out_date > to_date('26/02/2017','DD/MM/YYYY');
+
+-- 5. name of employee which has maximum attendance in year 2017
+
+select employee_id,"name" as employee_name from employee natural join (select * from (select r1.employee_id,count(*) from 
+(select employee_id, extract (year from date) as "year" from has_attendance)
+as r1 where r1.year = '2017' group by r1.employee_id)as r3 join (select max(r2.count) as max from 
+(select r1.employee_id,count(*) from (select employee_id, extract (year from date) as "year" from has_attendance)
+as r1 where r1.year = '2017' group by r1.employee_id) as r2) as r4 on r3.count = r4.max) as r5; 
+
+-- 6. name the customer with maximum number of booking
+
+select customer_id,"Name" from customer natural join (select * from (select customer_id,count(*) from books group by customer_id) as r1 join
+(select max(count) from (select customer_id,count(*) from books group by customer_id) as r1) as r2 on r2.max = r1.count) as r3;
+
+-- 7. Average number of rooms booked in each month
+
+select to_char(to_timestamp(to_char(r4.month,'999'),'MM'),'Mon') as month_name,r4.sum from 
+(select r3.month,sum(r3.count) from (select r1.month,r1.year,count(*) from
+(select extract(month from check_in_date) as "month", extract(year from check_in_date) as "year" from books) as r1
+group by r1.month,r1.year) as r3 group by r3.month order by r3.month asc) as r4;
+
+
+-- 8. extract employee which has joined before a given date
+
+select r1.employee_id,r1.name,category_name from category join
+(select employee_id,"name",works_in from employee where "join date" < to_date('01/01/2017','dd/mm/yyyy')) as r1
+on category_id = r1.works_in;
+
+-- 9. average review during each month of each year
+
+select r1."month",r1."year",avg(review) from
+(select extract(month from order_date) as "month", extract(year from order_date) as "year",review from "order") as r1
+group by r1."month",r1."year";
+
+
+-- 10. type of room which is booked maximum
+
+select room_type.*,r6.sum as bookings from room_type natural join
+(select r5.type_id,r5.sum from (select r2.type_id,sum(count) from (select * from room natural join 
+(select room_no,count(*) from books group by room_no) as r1) as r2 group by r2.type_id) as r5 join
+(select max(r3.sum) from (select r2.type_id,sum(count) from (select * from room natural join 
+(select room_no,count(*) from books group by room_no) as r1) as r2 group by r2.type_id) as r3) as r4 
+on r5.sum = r4.max) as r6;

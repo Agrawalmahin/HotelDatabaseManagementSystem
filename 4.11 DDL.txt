@@ -1,0 +1,93 @@
+drop schema hotel cascade;
+create schema hotel;
+    SET search_path TO hotel;
+
+    create table Room_Type(
+        "type_id" char(4) primary key,
+        "room_price" int ,
+        "type" varchar(20),
+        "description" text,
+        "size" varchar(10),
+        "Room_Occupancy" varchar(20)
+    );
+
+    create table Room(
+        "room_no" char(3) primary key,
+        "type_id" char(4),
+        "floor" int,
+        FOREIGN KEY(type_id) references Room_type(type_id)
+    );
+
+    CREATE TYPE gender AS ENUM ('male', 'female', 'transgender');
+
+    create table Customer(
+        "customer_id" numeric(9,0) primary key,
+        "Name" varchar(30),
+        "gender" gender,
+        "nationality" varchar(30),
+	    "phone_number" varchar(18),
+	    "E-mail" varchar(50),
+        "address" text
+    );
+
+    create table "books"(
+        "booking_id" numeric(9,0) primary key,
+        "customer_id" numeric(9,0),
+        "room_no" char(3),
+        "check_in_date" date,
+        "check_out_date" date,
+        "total_room_price" int,
+        FOREIGN KEY(customer_id) references Customer(customer_id),
+        FOREIGN KEY(room_no) references Room(room_no)
+    );
+
+
+    create table "order"(
+        "order_id" numeric(10,0) primary key,
+        "customer_id" numeric(9,0),
+        "order_date" date,
+        "order_time" text,
+        "review" int,
+        FOREIGN KEY(customer_id) references Customer(customer_id)
+    );
+
+    create table "category"(
+        "category_id" char(2) primary key,
+        "category_name" varchar,
+        "amount" int
+    );
+
+    create table "employee"(
+        "employee_id" char(6) primary key,
+        "works_in" char(2) references category(category_id),
+        "name" varchar(30),
+	    "contact" numeric(10),
+        "join date" date,
+        "address" text,
+        "base_salary" int
+    );
+
+    ALTER TABLE "category"
+        ADD "has_manager" char(6) references employee(employee_id); 
+
+    create table "service_items"(   
+        "service_item_id" char(4) primary key,
+        "category_id" char(2) references category(category_id),
+	    "service_name" text,
+        "price_per_unit" int
+    );
+
+    create table "has_service_items"(
+        "order_id" numeric(10,0) references order(order_id),
+        "service_item_id" char(4) references service_items(service_item_id),
+        "quantity" int,
+        "price" int,
+        primary key(order_id,service_item_id)
+    );
+
+
+    create table has_attendance(
+        "employee_id" char(6) references employee(employee_id),
+        "date" date,
+        primary key(employee_id, date)
+    );

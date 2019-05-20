@@ -1,0 +1,108 @@
+-- There are two Stored Procedures in this file
+-- Group id 4.11
+
+-------------------------------------------------------------------------------------------------------------------------
+
+-- Stored Procedure 1: Change in sales of item during a time period
+-- Insert the service_item_id, month1, year1, month2, year2 as arguments to the function
+-- This function will return the percentage change in sales on that item in those two months
+
+CREATE OR REPLACE FUNCTION change(sid char(4), month1 int,year1 int,month2 int,year2 int) returns numeric(5,5) as $body$
+declare
+	abcd record;
+	quant1 real;
+	quant2 real;
+	mn int;
+	yy int;
+	ans numeric(5,2);
+begin
+	quant1:=0;
+	quant2:=0;
+	for abcd in select * from "order" natural join has_service_items
+	loop
+		select extract (month from abcd.order_date) into mn;
+		select extract (year from abcd.order_date) into yy;
+		if mn = month1 then
+			if yy = year1 then
+				if abcd.service_item_id = sid then
+					quant1 := quant1 + abcd.quantity;
+				end if;
+			end if;
+		end if;
+	end loop;
+
+	for abcd in select * from "order" natural join has_service_items
+	loop
+		select extract (month from abcd.order_date) into mn;
+		select extract (year from abcd.order_date) into yy;
+		if mn = month2 then
+			if yy = year2 then
+				if abcd.service_item_id = sid then
+					quant2 := quant2 + abcd.quantity;
+				end if;
+			end if;
+		end if;
+	end loop;
+	raise notice '%', year1;
+	raise notice '%', month1;
+	raise notice '%', year2;
+	raise notice '%', month2;
+	raise notice '%', quant1;
+	raise notice '%', quant2;
+	ans := ((quant2 - quant1)/(quant1+quant2))*100;
+	return ans;
+end $body$ language plpgsql;
+
+
+------------------------------------------------------------------------------------------------------------------------
+
+--Stored Procedure 2: This function finds the total bill amount of a customer during a particular booking
+-- Input to this function is the booking_id of the customer
+-- Output is integer representing final amount for the booking which include orders given during the booking period by that customer
+
+create or replace function bill(in bid numeric(9)) returns int as $body$
+	declare
+		in_date date;
+		out_date date;
+		booking "books"%rowtype;
+		cust_id numeric(9);
+		order1 record;
+		a int;
+		amount int;
+	begin
+		a := 0;
+		amount := 0;
+		for booking in select * from "books" 
+		loop
+			if booking.booking_id = bid then
+				cust_id := booking.customer_id;
+				in_date := booking.check_in_date;
+				out_date := booking.check_out_date;
+				a := 1;
+				amount := amount + booking.total_room_price;
+			end if;
+		end loop;
+		
+		if a = 0 then 
+			raise notice 'booking_id does not exist';
+			cust_id := 0;
+			amount := 0	;																				   
+		end if;
+
+		for order1 in select * from "order" natural join has_service_items
+		loop
+			if order1.customer_id = cust_id then
+				if order1.order_date >= in_date then
+					if order1.order_date <= out_date then
+						amount := amount + order1.price;
+					end if;
+				end if;
+			end if;
+		end loop;
+		return amount;
+	end $body$ language plpgsql;
+
+
+-- end of stored procedure 2
+---------------------------------------------------------------------------------
+-- end of file

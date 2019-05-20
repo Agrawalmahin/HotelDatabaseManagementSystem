@@ -1,0 +1,97 @@
+-- This file contains two triggers
+-- group id :- 4.11
+
+-- TRIGGER 1
+----------------------------------------------------------------------------------------------------------------------------------
+-- This trigger updates the room bill according to the check_in and ckeck_out date of a particular booking.
+-- If their is any changes in the check_out date it makes neccesary changes of amount in room bill.
+
+
+CREATE TRIGGER insert_price
+AFTER INSERT OR DELETE OR UPDATE OF check_out_date ON books
+	FOR EACH ROW EXECUTE PROCEDURE set_booking_price();
+
+
+CREATE OR REPLACE FUNCTION set_booking_price() RETURNS TRIGGER AS $$
+  DECLARE
+  		price integer := 0;
+        total_price integer := 0;
+        in_date timestamp;
+        out_date timestamp;
+        days integer := 0;
+  BEGIN	
+		IF (TG_OP = 'INSERT') THEN
+        	select room_price into price from books natural join room natural join room_type where new.room_no = room_no;
+        	select into in_date NEW.check_in_date + '01:00:00'::time;
+        	select into out_date NEW.check_out_date + '23:00:00'::time;
+        	select into days DATE_PART('day',out_date::timestamp - in_date::timestamp);
+            IF (days = 0) THEN
+            	days := 1;
+            END IF;
+            total_price = price*days;
+        	UPDATE books SET total_room_price = total_price WHERE new.booking_id = booking_id;
+            RETURN NEW;
+        ELSIF (TG_OP = 'UPDATE') THEN
+        	select room_price into price from books natural join room natural join room_type where NEW.room_no = room_no;
+        	DELETE FROM books where OLD.booking_id = booking_id;
+            INSERT INTO books VALUES(OLD.booking_id,OLD.customer_id,OLD.room_no,OLD.check_in_date,NEW.check_out_date,total_price);
+            RETURN NEW;
+        ELSIF (TG_OP = 'DELETE') THEN
+        	delete from books where OLD.booking_id = booking_id;
+            RETURN OLD;
+  		END IF;
+        RETURN NULL;
+  END;
+$$ LANGUAGE plpgsql;
+
+
+
+--select * from books;
+--update books set check_out_date = to_date('08/06/2017','dd/mm/yyyy') where booking_id = '2001';
+--delete from books where booking_id = '2002';
+--insert into books values('2002','201800020','001',to_date('05/06/2017','dd/mm/yyyy'),to_date('07/06/2017','dd/mm/yyyy'),null);
+        	
+
+--TRIGGER 2
+-------------------------------------------------------------------------------------------------------------------------------
+-- This trigger updates the price of a particular items according to the qunatity of that items in a particular order.
+-- if their is any changes in the quantity of the particular items of an order then it makes neccessary changes in the price.
+
+CREATE TRIGGER order_price 
+AFTER INSERT OR DELETE OR UPDATE OF quantity ON has_service_items
+	FOR EACH ROW EXECUTE PROCEDURE set_order_price();
+
+
+
+CREATE OR REPLACE FUNCTION set_order_price()
+	RETURNS TRIGGER AS $$
+  DECLARE
+  		price integer := 0;
+        qty integer := 0;
+        total_price integer := 0;
+        ord_id numeric := 0;ser_it_id char; quant int := 0;pri int := 0; 
+  BEGIN
+ 
+  		IF(TG_OP = 'INSERT') THEN
+        	select price_per_unit into price from service_items where NEW.service_item_id = service_item_id;
+            select quantity into qty from has_service_items where NEW.order_id = order_id and NEW.service_item_id = service_item_id;
+            total_price = price*qty;
+            UPDATE has_service_items SET price = total_price where NEW.order_id = order_id and NEW.service_item_id = service_item_id;
+        	RETURN NEW;
+        ELSIF (TG_OP = 'UPDATE') THEN
+        	DELETE FROM has_service_items where NEW.order_id = order_id and NEW.service_item_id = service_item_id;
+            INSERT INTO has_service_items VALUES(OLD.order_id,OLD.service_item_id,NEW.quantity,null);
+            select price_per_unit into price from service_items where NEW.service_item_id = service_item_id;
+            select quantity into qty from has_service_items where NEW.order_id = order_id and NEW.service_item_id = service_item_id;
+            total_price = price*qty;
+            UPDATE has_service_items SET price = total_price where NEW.order_id = order_id and NEW.service_item_id = service_item_id;
+        	RETURN NEW;
+        ELSIF(TG_OP = 'DELETE') THEN
+        	DELETE FROM has_service_items where OLD.order_id = order_id and OLD.service_item_id = service_item_id;
+        	RETURN OLD;
+        RETURN NULL;
+        END IF;
+  END;
+  $$ LANGUAGE plpgsql;
+
+ --------------------------------------------------------------------------------------------------------------------------------
