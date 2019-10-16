@@ -1,0 +1,40 @@
+/*
+
+
+Given a positive integer, return its corresponding column title as appear in an Excel sheet.
+
+For example:
+
+    1 -> A
+    2 -> B
+    3 -> C
+    ...
+    26 -> Z
+    27 -> AA
+    28 -> AB 
+
+
+*/
+
+public class Solution {
+    public String convertToTitle(int A) {
+        
+        String ans = "";
+        while(A >1){
+            int temp = A/26;
+            int rem = A%26;
+            if(rem == 0) rem = 26;
+            rem-=1;
+            char add = (char)(rem + 'A');
+            //add = add + 12;
+            //System.out.println(add + " ");
+            ans+=add;
+            A = temp;
+        }
+        String ret = "";
+        for(int i = ans.length()-1;i>=0;i--){
+            ret +=ans.charAt(i);
+        }
+        return ret;
+    }
+}
